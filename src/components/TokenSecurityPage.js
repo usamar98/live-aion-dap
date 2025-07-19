@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Shield, AlertTriangle, CheckCircle, Copy, ExternalLink, TrendingUp, Users, Clock, Globe } from 'lucide-react';
+import { Shield, AlertTriangle, CheckCircle, Copy, ExternalLink, TrendingUp, Users, Clock, Globe } from 'lucide-react';
 
 const TokenSecurityPage = ({ title }) => {
   const [tokenAddress, setTokenAddress] = useState('');
