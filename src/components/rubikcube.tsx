@@ -1,5 +1,5 @@
 import { Canvas } from "@react-three/fiber";
-import { PerspectiveCamera, useHelper } from "@react-three/drei";
+import { PerspectiveCamera } from "@react-three/drei";
 import { useThree, useFrame } from "@react-three/fiber";
 import { SpotLight, useDepthBuffer } from '@react-three/drei';
 import * as THREE from 'three';
@@ -24,7 +24,7 @@ const RubiksCubeModel = forwardRef((props, ref) => {
   const isResizingRef = useRef(false);
   const resizeTimeoutRef = useRef(null);
   
-  const [size, setSize] = useState(0.8);
+  const size = 0.8; // Changed from useState to const since setSize is never used
   const [cubes, setCubes] = useState([]);
   const [isVisible, setIsVisible] = useState(true);
   const [deviceSettings, setDeviceSettings] = useState(() => {
