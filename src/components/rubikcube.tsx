@@ -247,7 +247,6 @@ const RubiksCubeModel = forwardRef((props, ref) => {
       lastMoveAxisRef.current = move.axis;
       isAnimatingRef.current = true;
       currentRotationRef.current = 0;
-    } else {
     }
   }, [possibleMoves, isVisible]);
 
@@ -513,16 +512,14 @@ function EnhancedSpotlight(props) {
 }
 
 function SceneContent() {
-
   const depthBuffer = useDepthBuffer({ 
     size: 2048,
     frames: 1,
     disableRenderLoop: true 
   });
   
-  const [time, setTime] = useState(0);
-  useFrame((state) => {
-    setTime(state.clock.getElapsedTime());
+  useFrame(() => {
+    // Animation frame logic without unused time variable
   });
   
   return (

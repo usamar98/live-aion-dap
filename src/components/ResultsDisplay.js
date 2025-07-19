@@ -8,7 +8,6 @@ import {
   Users, 
   DollarSign, 
   Clock,
-  ExternalLink,
   Copy,
   CheckCircle,
   AlertTriangle
@@ -36,10 +35,6 @@ const ResultsDisplay = ({ data, isLoading }) => {
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
     toast.success('Copied to clipboard!');
-  };
-
-  const formatAddress = (address) => {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
   const formatNumber = (num) => {

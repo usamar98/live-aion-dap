@@ -19,6 +19,19 @@ export const Web3Provider = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [chainId, setChainId] = useState(null);
 
+  const handleAccountsChanged = (accounts) => {
+    if (accounts.length === 0) {
+      disconnectWallet();
+    } else {
+      setAccount(accounts[0]);
+    }
+  };
+
+  const handleChainChanged = (chainId) => {
+    setChainId(parseInt(chainId, 16));
+    window.location.reload();
+  };
+
   useEffect(() => {
     checkConnection();
     if (window.ethereum) {
@@ -32,7 +45,7 @@ export const Web3Provider = ({ children }) => {
         window.ethereum.removeListener('chainChanged', handleChainChanged);
       }
     };
-  }, []);
+  }, [handleAccountsChanged]);
 
   const checkConnection = async () => {
     if (window.ethereum) {
@@ -88,19 +101,6 @@ export const Web3Provider = ({ children }) => {
     setIsConnected(false);
     setChainId(null);
     toast.success('Wallet disconnected');
-  };
-
-  const handleAccountsChanged = (accounts) => {
-    if (accounts.length === 0) {
-      disconnectWallet();
-    } else {
-      setAccount(accounts[0]);
-    }
-  };
-
-  const handleChainChanged = (chainId) => {
-    setChainId(parseInt(chainId, 16));
-    window.location.reload();
   };
 
   const value = {
