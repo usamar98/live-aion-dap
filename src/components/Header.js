@@ -1,11 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { gsap } from 'gsap';
-import { Moon, Sun, Wallet, LogOut } from 'lucide-react';
+import { Moon, Sun, Wallet, LogOut, ArrowLeft } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useWeb3 } from '../context/Web3Context';
 
-const Header = () => {
+const Header = ({ activeSection, setActiveSection }) => {
   const { isDark, toggleTheme } = useTheme();
   const { isConnected, account, connectWallet, disconnectWallet } = useWeb3();
   const headerRef = useRef(null);
@@ -30,7 +30,24 @@ const Header = () => {
       transition={{ duration: 0.8, ease: 'easeOut' }}
     >
       <div className="px-6 py-4">
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-between">
+          {/* Logo and Back Button */}
+          <div className="flex items-center space-x-4">
+            {activeSection !== 'dashboard' && (
+              <motion.button
+                onClick={() => setActiveSection('dashboard')}
+                className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <ArrowLeft className="w-5 h-5 text-white" />
+              </motion.button>
+            )}
+            <img src="/AioAi.jpg" alt="AioAi" className="h-8 w-8 rounded" />
+            <span className="text-xl font-bold text-white">AioAi</span>
+          </div>
+
+          {/* Right side controls */}
           <div className="flex items-center space-x-4">
             <motion.button
               onClick={toggleTheme}

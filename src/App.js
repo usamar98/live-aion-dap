@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import Header from './components/Header';
-import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
+import TokenSecurityPage from './components/TokenSecurityPage';
 import { Scene } from './components/rubikcube.tsx';
 import { ThemeProvider } from './context/ThemeContext';
 import { Web3Provider } from './context/Web3Context';
@@ -15,44 +15,19 @@ function App() {
   const renderContent = () => {
     switch (activeSection) {
       case 'dashboard':
-        return <Dashboard />;
+        return <Dashboard setActiveSection={setActiveSection} />;
       case 'aion-bot':
-        return (
-          <div className="text-center py-20">
-            <h1 className="text-3xl font-bold text-white mb-4">Aion Bot</h1>
-            <p className="text-gray-400">AI-powered blockchain analysis coming soon...</p>
-          </div>
-        );
+        return <TokenSecurityPage title="Aion Bot" />;
       case 'phishing-scanner':
-        return (
-          <div className="text-center py-20">
-            <h1 className="text-3xl font-bold text-white mb-4">Phishing Link Scanner</h1>
-            <p className="text-gray-400">Advanced phishing detection tools coming soon...</p>
-          </div>
-        );
+        return <TokenSecurityPage title="Phishing Link Scanner" />;
       case 'wallet-detection':
-        return (
-          <div className="text-center py-20">
-            <h1 className="text-3xl font-bold text-white mb-4">Phishing Wallets Detection</h1>
-            <p className="text-gray-400">Wallet security analysis coming soon...</p>
-          </div>
-        );
+        return <TokenSecurityPage title="Phishing Wallets Detection" />;
       case 'trace-funds':
-        return (
-          <div className="text-center py-20">
-            <h1 className="text-3xl font-bold text-white mb-4">Trace Stolen Funds</h1>
-            <p className="text-gray-400">Fund tracing capabilities coming soon...</p>
-          </div>
-        );
+        return <TokenSecurityPage title="Trace Stolen Funds" />;
       case 'aion-lab':
-        return (
-          <div className="text-center py-20">
-            <h1 className="text-3xl font-bold text-white mb-4">Aion Lab</h1>
-            <p className="text-gray-400">Experimental features and research tools coming soon...</p>
-          </div>
-        );
+        return <TokenSecurityPage title="Aion Lab" />;
       default:
-        return <Dashboard />;
+        return <Dashboard setActiveSection={setActiveSection} />;
     }
   };
 
@@ -66,23 +41,19 @@ function App() {
           </div>
           
           {/* Main Content Overlay */}
-          <div className="relative z-10 flex">
-            <Sidebar activeSection={activeSection} setActiveSection={setActiveSection} />
-            
-            <div className="flex-1 lg:ml-[280px] transition-all duration-300">
-              <Header />
-              <main className="p-6">
-                <motion.div
-                  key={activeSection}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.5 }}
-                >
-                  {renderContent()}
-                </motion.div>
-              </main>
-            </div>
+          <div className="relative z-10">
+            <Header activeSection={activeSection} setActiveSection={setActiveSection} />
+            <main className="p-6">
+              <motion.div
+                key={activeSection}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.5 }}
+              >
+                {renderContent()}
+              </motion.div>
+            </main>
           </div>
           
           <Toaster 
