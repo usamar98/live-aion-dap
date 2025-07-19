@@ -103,14 +103,15 @@ export const Web3Provider = ({ children }) => {
     }
   };
 
-  const disconnectWallet = () => {
-    setProvider(null);
-    setSigner(null);
-    setAccount(null);
-    setIsConnected(false);
-    setChainId(null);
-    toast.success('Wallet disconnected');
-  };
+  // Remove this duplicate disconnectWallet function (lines 96-103)
+  // const disconnectWallet = () => {
+  //   setProvider(null);
+  //   setSigner(null);
+  //   setAccount(null);
+  //   setIsConnected(false);
+  //   setChainId(null);
+  //   toast.success('Wallet disconnected');
+  // };
 
   const value = {
     provider,
