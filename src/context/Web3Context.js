@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
 import toast from 'react-hot-toast';
 
@@ -19,18 +19,27 @@ export const Web3Provider = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [chainId, setChainId] = useState(null);
 
-  const handleAccountsChanged = (accounts) => {
+  const disconnectWallet = () => {
+    setProvider(null);
+    setSigner(null);
+    setAccount(null);
+    setIsConnected(false);
+    setChainId(null);
+    toast.success('Wallet disconnected');
+  };
+
+  const handleAccountsChanged = useCallback((accounts) => {
     if (accounts.length === 0) {
       disconnectWallet();
     } else {
       setAccount(accounts[0]);
     }
-  };
+  }, []);
 
-  const handleChainChanged = (chainId) => {
+  const handleChainChanged = useCallback((chainId) => {
     setChainId(parseInt(chainId, 16));
     window.location.reload();
-  };
+  }, []);
 
   useEffect(() => {
     checkConnection();
@@ -45,7 +54,7 @@ export const Web3Provider = ({ children }) => {
         window.ethereum.removeListener('chainChanged', handleChainChanged);
       }
     };
-  }, [handleAccountsChanged]);
+  }, [handleAccountsChanged, handleChainChanged]);
 
   const checkConnection = async () => {
     if (window.ethereum) {

@@ -150,7 +150,7 @@ const RubiksCubeModel = forwardRef((props, ref) => {
       isResizingRef.current = false;
     }, 150);
     
-  }, [resetCube]);
+  }, []);
 
   useEffect(() => {
     handleViewportChange();

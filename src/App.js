@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import Header from './components/Header';
-import Hero from './components/Hero';
-import CodeRevealForm from './components/CodeRevealForm';
-import ResultsDisplay from './components/ResultsDisplay';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import { Scene } from './components/rubikcube.tsx';
@@ -13,8 +10,6 @@ import { Web3Provider } from './context/Web3Context';
 import './index.css';
 
 function App() {
-  const [contractData, setContractData] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [activeSection, setActiveSection] = useState('dashboard');
 
   const renderContent = () => {
@@ -57,24 +52,7 @@ function App() {
           </div>
         );
       default:
-        return (
-          <>
-            <Hero />
-            <CodeRevealForm 
-              onDataFetch={setContractData}
-              isLoading={isLoading}
-              setIsLoading={setIsLoading}
-            />
-            <AnimatePresence>
-              {contractData && (
-                <ResultsDisplay 
-                  data={contractData}
-                  isLoading={isLoading}
-                />
-              )}
-            </AnimatePresence>
-          </>
-        );
+        return <Dashboard />;
     }
   };
 
