@@ -1,7 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { gsap } from 'gsap';
-import { Moon, Sun, Wallet, LogOut, ArrowLeft } from 'lucide-react';
+import { Moon, Sun, Wallet, LogOut, ArrowLeft, TrendingUp, TrendingDown } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useWeb3 } from '../context/Web3Context';
 
@@ -9,16 +9,42 @@ const Header = ({ activeSection, setActiveSection }) => {
   const { isDark, toggleTheme } = useTheme();
   const { isConnected, account, connectWallet, disconnectWallet } = useWeb3();
   const headerRef = useRef(null);
+  const [cryptoData, setCryptoData] = useState([
+    { symbol: 'BTC', price: 43250.50, change: 2.45, isPositive: true },
+    { symbol: 'ETH', price: 2580.75, change: -1.23, isPositive: false },
+    { symbol: 'BNB', price: 315.20, change: 0.85, isPositive: true },
+    { symbol: 'ADA', price: 0.485, change: 3.12, isPositive: true },
+    { symbol: 'SOL', price: 98.45, change: -0.67, isPositive: false },
+    { symbol: 'DOT', price: 7.23, change: 1.89, isPositive: true },
+    { symbol: 'MATIC', price: 0.92, change: -2.15, isPositive: false },
+    { symbol: 'AVAX', price: 36.78, change: 4.56, isPositive: true }
+  ]);
 
   useEffect(() => {
     gsap.fromTo(headerRef.current, 
       { y: -100, opacity: 0 },
       { y: 0, opacity: 1, duration: 1, ease: 'power3.out' }
     );
+
+    // Simulate real-time price updates
+    const interval = setInterval(() => {
+      setCryptoData(prev => prev.map(coin => ({
+        ...coin,
+        price: coin.price + (Math.random() - 0.5) * coin.price * 0.02,
+        change: (Math.random() - 0.5) * 10,
+        isPositive: Math.random() > 0.5
+      })));
+    }, 3000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const formatAddress = (address) => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
+
+  const formatPrice = (price) => {
+    return price < 1 ? price.toFixed(4) : price.toFixed(2);
   };
 
   return (
@@ -43,25 +69,39 @@ const Header = ({ activeSection, setActiveSection }) => {
                 <ArrowLeft className="w-5 h-5 text-white" />
               </motion.button>
             )}
-            <img src="/AioAi.jpg" alt="AioAi" className="h-8 w-8 rounded" />
-            <span className="text-xl font-bold text-white">AioAi</span>
+            <img src="/AioAi.jpg" alt="Aion Ai" className="h-8 w-8 rounded" />
+          </div>
+
+          {/* Crypto Ticker */}
+          <div className="flex-1 mx-8 overflow-hidden">
+            <div className="relative h-8 bg-gray-900/50 rounded-lg">
+              <div className="absolute inset-0 flex items-center">
+                <div className="animate-marquee flex space-x-8 whitespace-nowrap">
+                  {[...cryptoData, ...cryptoData, ...cryptoData].map((coin, index) => (
+                    <div key={`${coin.symbol}-${index}`} className="flex items-center space-x-2 text-sm">
+                      <span className="text-white font-semibold">{coin.symbol}</span>
+                      <span className="text-gray-300">${formatPrice(coin.price)}</span>
+                      <div className={`flex items-center space-x-1 ${
+                        coin.isPositive ? 'text-green-400' : 'text-red-400'
+                      }`}>
+                        {coin.isPositive ? (
+                          <TrendingUp className="w-3 h-3" />
+                        ) : (
+                          <TrendingDown className="w-3 h-3" />
+                        )}
+                        <span className="text-xs">
+                          {coin.isPositive ? '+' : ''}{coin.change.toFixed(2)}%
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Right side controls */}
           <div className="flex items-center space-x-4">
-            <motion.button
-              onClick={toggleTheme}
-              className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors"
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              {isDark ? (
-                <Sun className="w-5 h-5 text-yellow-400" />
-              ) : (
-                <Moon className="w-5 h-5 text-gray-400" />
-              )}
-            </motion.button>
-
             {isConnected ? (
               <div className="flex items-center space-x-2">
                 <div className="px-3 py-2 bg-gray-800 rounded-lg text-sm font-medium text-white">
@@ -84,7 +124,7 @@ const Header = ({ activeSection, setActiveSection }) => {
                 whileTap={{ scale: 0.95 }}
               >
                 <Wallet className="w-4 h-4" />
-                <span>Connect Wallet</span>
+                <span>Connected</span>
               </motion.button>
             )}
           </div>
