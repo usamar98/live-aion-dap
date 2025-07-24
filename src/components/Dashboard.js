@@ -5,7 +5,8 @@ import {
   Wallet, 
   Search, 
   FlaskConical,
-  ArrowRight
+  ArrowRight,
+  Users
 } from 'lucide-react';
 
 const Dashboard = ({ setActiveSection }) => {
@@ -17,6 +18,20 @@ const Dashboard = ({ setActiveSection }) => {
       icon: Search,
       color: 'from-red-600 to-red-400',
       features: ['URL Analysis', 'Domain Reputation', 'Real-time Scanning'],
+      clickable: true
+    },
+    {
+      id: 'team-bundle-scanner',
+      title: 'Team & Bundle Wallet Scanner',
+      description: 'Comprehensive wallet tracking and rug pull detection system',
+      icon: Users,
+      color: 'from-blue-600 to-blue-400',
+      features: [
+        'Team Wallet Detection',
+        'Bundle Wallet Analysis', 
+        'Real-time Monitoring',
+        'Alert System'
+      ],
       clickable: true
     },
     {

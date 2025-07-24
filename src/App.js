@@ -4,10 +4,12 @@ import { Toaster } from 'react-hot-toast';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
 import TokenSecurityPage from './components/TokenSecurityPage';
+import TeamBundleWalletPage from './components/TeamBundleWalletPage';
 import { Scene } from './components/rubikcube.tsx';
 import { ThemeProvider } from './context/ThemeContext';
 import { Web3Provider } from './context/Web3Context';
 import './index.css';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
   const [activeSection, setActiveSection] = useState('dashboard');
@@ -20,6 +22,8 @@ function App() {
         return <TokenSecurityPage title="Aion Bot" />;
       case 'phishing-scanner':
         return <TokenSecurityPage title="Phishing Link Scanner" />;
+      case 'team-bundle-scanner':
+        return <TeamBundleWalletPage />;
       case 'wallet-detection':
         return <TokenSecurityPage title="Phishing Wallets Detection" />;
       case 'trace-funds':
@@ -75,3 +79,7 @@ function App() {
 }
 
 export default App;
+
+<ErrorBoundary>
+  <TeamBundleWalletPage />
+</ErrorBoundary>
