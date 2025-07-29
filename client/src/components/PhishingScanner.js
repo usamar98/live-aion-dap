@@ -152,23 +152,42 @@ const PhishingScanner = () => {
   // IP geolocation and hosting info
   const getIPInfo = async (domain) => {
     try {
+      // Check if API key is configured
+      if (!API_CONFIGS.ipinfo.key) {
+        console.warn('IPInfo API key not configured');
+        return { error: 'IPInfo API key not configured' };
+      }
+
+      console.log('Fetching IP info for domain:', domain);
       const response = await fetch(`${API_CONFIGS.ipinfo.baseUrl}/${domain}/json?token=${API_CONFIGS.ipinfo.key}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
       
+      // Check if we got valid data
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      
+      console.log('IP info received:', data);
+      
       return {
-        ip: data.ip,
-        city: data.city,
-        region: data.region,
-        country: data.country,
-        location: data.loc,
-        org: data.org,
-        postal: data.postal,
-        timezone: data.timezone,
-        asn: data.asn
+        ip: data.ip || 'N/A',
+        city: data.city || 'N/A',
+        region: data.region || 'N/A',
+        country: data.country || 'N/A',
+        location: data.loc || 'N/A',
+        org: data.org || 'N/A',
+        postal: data.postal || 'N/A',
+        timezone: data.timezone || 'N/A',
+        asn: data.asn || 'N/A'
       };
     } catch (error) {
       console.error('IP info lookup failed:', error);
-      return { error: error.message };
+      return { error: `Failed to fetch IP information: ${error.message}` };
     }
   };
 
@@ -518,6 +537,9 @@ const PhishingScanner = () => {
                     {results.ipinfo.error ? (
                       <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4">
                         <p className="text-red-300">IP information unavailable: {results.ipinfo.error}</p>
+                        <p className="text-gray-400 text-sm mt-2">
+                          Please check if the REACT_APP_IPINFO_API_KEY environment variable is set correctly.
+                        </p>
                       </div>
                     ) : (
                       <div className="bg-gray-700 rounded-lg p-4">
@@ -528,7 +550,7 @@ const PhishingScanner = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                           <div>
                             <span className="text-gray-400">IP Address:</span>
-                            <span className="ml-2 text-white font-mono">{results.ipinfo.ip}</span>
+                            <span className="ml-2 text-white font-mono">{results.ipinfo.ip || 'N/A'}</span>
                           </div>
                           <div>
                             <span className="text-gray-400">Organization:</span>
@@ -537,12 +559,22 @@ const PhishingScanner = () => {
                           <div>
                             <span className="text-gray-400">Location:</span>
                             <span className="ml-2 text-white">
-                              {results.ipinfo.city}, {results.ipinfo.region}, {results.ipinfo.country}
+                              {[results.ipinfo.city, results.ipinfo.region, results.ipinfo.country]
+                                .filter(item => item && item !== 'N/A')
+                                .join(', ') || 'N/A'}
                             </span>
                           </div>
                           <div>
                             <span className="text-gray-400">Timezone:</span>
                             <span className="ml-2 text-white">{results.ipinfo.timezone || 'N/A'}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-400">ASN:</span>
+                            <span className="ml-2 text-white">{results.ipinfo.asn || 'N/A'}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-400">Postal Code:</span>
+                            <span className="ml-2 text-white">{results.ipinfo.postal || 'N/A'}</span>
                           </div>
                         </div>
                       </div>
