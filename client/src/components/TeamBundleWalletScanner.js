@@ -539,7 +539,7 @@ const TeamBundleWalletScanner = () => {
       .slice(0, 50);
   };
 
-  const classifyWallets = async (holders, deployer, originalTokenCA) => {
+  const classifyWallets = async (holders, deployer, originalTokenCA, tokenInfo) => {
     console.log('🔒 WALLET CLASSIFICATION - Original Token CA:', originalTokenCA);
     console.log('⚠️ All wallet analysis based on holders of:', originalTokenCA);
     
@@ -552,7 +552,7 @@ const TeamBundleWalletScanner = () => {
         holdersCount: holders?.length || 0, 
         deployer, 
         originalTokenCA,
-        tokenData: tokenData ? { name: tokenData.name, symbol: tokenData.symbol, totalSupply: tokenData.totalSupply } : null 
+        tokenData: tokenInfo ? { name: tokenInfo.name, symbol: tokenInfo.symbol, totalSupply: tokenInfo.totalSupply } : null 
       });
       
       if (!holders || holders.length === 0) {
@@ -560,12 +560,13 @@ const TeamBundleWalletScanner = () => {
         return { team, bundles };
       }
       
-      const totalSupply = parseFloat(tokenData?.totalSupply || '0');
+      // Use tokenInfo parameter instead of component state to avoid race condition
+      const totalSupply = parseFloat(tokenInfo?.totalSupply || '0');
       console.log('📊 Total supply for calculation:', totalSupply);
       
       if (totalSupply <= 0) {
         console.log('⚠️ Invalid total supply for percentage calculation');
-        console.log('⚠️ Token data:', tokenData);
+        console.log('⚠️ Token data:', tokenInfo);
         return { team, bundles };
       }
       
@@ -905,9 +906,19 @@ const TeamBundleWalletScanner = () => {
     console.log('🎯 WALLET ANALYSIS TARGET: Original Token CA =', cleanAddress);
     console.log('⚠️ NEVER use LP pair addresses for wallet analysis');
     
+    // Reset all states before starting new analysis
+    setTokenData(null);
+    setDeployerInfo(null);
+    setTopHolders([]);
+    setTeamWallets([]);
+    setBundleWallets([]);
+    setDexData(null);
+    
     setLoading(true);
     
     try {
+      console.log('🔄 Starting comprehensive analysis...');
+      
       // 🔒 ALL wallet analysis functions use the ORIGINAL token CA
       const [token, deployer, holders, dex] = await Promise.all([
         fetchTokenData(cleanAddress),        // ✅ Uses original token CA
@@ -915,14 +926,33 @@ const TeamBundleWalletScanner = () => {
         fetchTopHolders(cleanAddress),       // ✅ Uses original token CA
         fetchDexData(cleanAddress)           // ✅ Uses original token CA for DEX data only
       ]);
-  
+      
+      console.log('✅ All data fetched successfully:', {
+        token: token ? `${token.name} (${token.symbol})` : 'null',
+        deployer: deployer?.deployer || 'null',
+        holdersCount: holders?.length || 0,
+        dexData: dex ? 'available' : 'null'
+      });
+      
+      // Ensure we have valid token data before proceeding
+      if (!token || !token.totalSupply) {
+        throw new Error('Failed to fetch valid token data');
+      }
+      
+      // 🔒 Pass token data directly to avoid race condition
+      console.log('🔄 Starting wallet classification with token data:', token);
+      const { team, bundles } = await classifyWallets(holders, deployer.deployer, cleanAddress, token);
+      
+      console.log('✅ Wallet classification complete:', {
+        teamWallets: team.length,
+        bundleWallets: bundles.length
+      });
+      
+      // Update all states after successful analysis
       setTokenData(token);
       setDeployerInfo(deployer);
       setTopHolders(holders);
       setDexData(dex);
-  
-      // 🔒 Wallet classification uses holders from ORIGINAL token CA only
-      const { team, bundles } = await classifyWallets(holders, deployer.deployer, cleanAddress);
       setTeamWallets(team);
       setBundleWallets(bundles);
   
@@ -931,11 +961,19 @@ const TeamBundleWalletScanner = () => {
         setWatchlist(prev => [...prev, { address: cleanAddress, chain, ...token }]);
       }
   
-      addAlert(`Analysis complete for ${token.name}`, 'success');
+      addAlert(`Analysis complete for ${token.name} - Found ${team.length} team wallets and ${bundles.length} bundle wallets`, 'success');
       startMonitoring(cleanAddress);  // ✅ Monitor price using DEX data, but analyze wallets using token CA
       
     } catch (error) {
       console.error('Analysis failed:', error);
+      
+      // Reset states on error
+      setTokenData(null);
+      setDeployerInfo(null);
+      setTopHolders([]);
+      setTeamWallets([]);
+      setBundleWallets([]);
+      setDexData(null);
       
       // More specific error messages
       let errorMessage = error.message;
@@ -1271,7 +1309,7 @@ const TeamBundleWalletScanner = () => {
           )}
 
           {/* Team Wallets */}
-          {tokenData && (
+          {(tokenData || teamWallets.length > 0) && (
             <div className="bg-gray-700 rounded-lg p-4">
               <h3 className="text-lg font-semibold mb-4 text-white">Team Wallets ({teamWallets.length})</h3>
               {teamWallets.length > 0 ? (
@@ -1390,7 +1428,7 @@ const TeamBundleWalletScanner = () => {
           )}
 
           {/* Bundle Wallets */}
-          {tokenData && (
+          {(tokenData || bundleWallets.length > 0) && (
             <div className="bg-gray-700 rounded-lg p-4">
               <h3 className="text-lg font-semibold mb-4 text-white">Bundle Wallets ({bundleWallets.length})</h3>
               {bundleWallets.length > 0 ? (
