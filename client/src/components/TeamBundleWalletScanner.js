@@ -225,7 +225,7 @@ const TeamBundleWalletScanner = () => {
   };
 
   // Enhanced fetchTokenData with multi-chain support
-  const fetchTokenData = async (address, detectedChain = null) => {
+  const fetchTokenData = useCallback(async (address, detectedChain = null) => {
     console.log('🔍 Starting fetchTokenData for:', address, 'on chain:', detectedChain || 'auto-detect');
     
     try {
@@ -306,9 +306,9 @@ const TeamBundleWalletScanner = () => {
       debugAPICall('TokenData', address, error);
       throw new Error(`Unable to fetch token data: ${error.message}`);
     }
-  };
+  }, [setChain]);
 
-  const fetchTopHolders = async (tokenAddress, tokenChain = null) => {
+  const fetchTopHolders = useCallback(async (tokenAddress, tokenChain = null) => {
     // 🔒 CRITICAL: Validate we're using the original token CA
     console.log('🎯 FETCHING HOLDERS FOR ORIGINAL TOKEN CA:', tokenAddress);
     console.log('⚠️ This should NEVER be a LP pair address (WETH, USDT, etc.)');
@@ -379,7 +379,7 @@ const TeamBundleWalletScanner = () => {
       // Fallback to owners endpoint
       return await fetchHoldersFromOwners(tokenAddress, tokenChain || chain, tokenData?.decimals || 18);
     }
-  };
+  }, [chain, tokenData]);
 
   // Alternative function to fetch holders using Moralis owners endpoint
   const fetchHoldersFromOwners = async (tokenAddress, targetChain, decimals) => {
@@ -437,7 +437,7 @@ const TeamBundleWalletScanner = () => {
 
 
 
-  const fetchDeployerInfo = async (tokenAddress) => {
+  const fetchDeployerInfo = useCallback(async (tokenAddress) => {
     console.log('🔍 Starting fetchDeployerInfo for:', tokenAddress);
     try {
       const etherscanUrl = `${API_CONFIGS.etherscan.baseUrl}?module=contract&action=getcontractcreation&contractaddresses=${tokenAddress}&apikey=${API_CONFIGS.etherscan.key}`;
@@ -467,7 +467,7 @@ const TeamBundleWalletScanner = () => {
       debugAPICall('Etherscan Deployer', tokenAddress, error);
       return { deployer: 'Unable to determine', txHash: null };
     }
-  };
+  }, []);
 
   const fetchDeployerFromAlchemy = async (tokenAddress) => {
     try {
@@ -557,7 +557,7 @@ const TeamBundleWalletScanner = () => {
   
 
   
-  const classifyWalletsWithTokenData = async (holders, deployer, originalTokenCA, tokenDataParam) => {
+  const classifyWalletsWithTokenData = useCallback(async (holders, deployer, originalTokenCA, tokenDataParam) => {
     console.log('🔒 WALLET CLASSIFICATION WITH TOKEN DATA - Original Token CA:', originalTokenCA);
     console.log('⚠️ All wallet analysis based on holders of:', originalTokenCA);
     
@@ -809,11 +809,11 @@ const TeamBundleWalletScanner = () => {
       console.error('❌ Error stack:', error.stack);
       return { team: [], bundles: [] };
     }
-  };
+  }, []);
   
 
 
-  const fetchDexData = async (address) => {
+  const fetchDexData = useCallback(async (address) => {
     // 🔒 DEX data is for price monitoring ONLY, not wallet analysis
     console.log('📊 FETCHING DEX DATA for price monitoring:', address);
     console.log('⚠️ DEX data used for price/liquidity monitoring, NOT wallet analysis');
@@ -893,10 +893,10 @@ const TeamBundleWalletScanner = () => {
       console.error('DEX data fetch failed:', error);
       return null;
     }
-  };
+  }, []);
 
   // Enhanced monitoring with better thresholds
-  const startMonitoring = async (address) => {
+  const startMonitoring = useCallback(async (address) => {
     if (watchIntervalRef.current) {
       clearInterval(watchIntervalRef.current);
     }
@@ -935,9 +935,9 @@ const TeamBundleWalletScanner = () => {
         console.error('Monitoring error:', error);
       }
     }, 30000); // 30-second intervals
-  };
+  }, [dexData, tokenData]);
 
-  const addAlert = (message, type = 'info') => {
+  const addAlert = useCallback((message, type = 'info') => {
     const alert = {
       id: Date.now(),
       message,
@@ -945,12 +945,19 @@ const TeamBundleWalletScanner = () => {
       timestamp: new Date().toLocaleString()
     };
     
-    setAlerts(prev => [alert, ...prev]);
+    setAlerts(prev => [alert, ...prev].slice(0, 50)); // Keep last 50 alerts
     
     if (type === 'warning' || type === 'error') {
       toast[type](message);
     }
-  };
+    
+    // Auto-remove after 5 seconds for non-error alerts
+    if (type !== 'error') {
+      setTimeout(() => {
+        setAlerts(prev => prev.filter(a => a.id !== alert.id));
+      }, 5000);
+    }
+  }, []);
 
   // Function to fetch wallet transactions
   const fetchWalletTransactions = async (walletAddress) => {
