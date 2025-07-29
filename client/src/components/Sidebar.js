@@ -46,6 +46,11 @@ const Sidebar = ({ activeSection, setActiveSection }) => {
       id: 'aion-lab',
       label: 'Aion Lab',
       icon: FlaskConical
+    },
+    {
+      id: 'team-scanner',
+      label: 'Team & Bundle Scanner',
+      icon: Search
     }
   ];
 

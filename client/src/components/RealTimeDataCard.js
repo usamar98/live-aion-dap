@@ -1,360 +1,308 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Copy, ExternalLink, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { RefreshCw, Copy, TrendingUp, TrendingDown, AlertTriangle, CheckCircle } from 'lucide-react';
 import WalletAnalyticsService from '../services/WalletAnalyticsService';
 
 const RealTimeDataCard = ({ contractAddress, network = 'ethereum' }) => {
-  const [tokenData, setTokenData] = useState(null);
-  const [analysisResults, setAnalysisResults] = useState(null);
+  const [realTimeData, setRealTimeData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [refreshInterval, setRefreshInterval] = useState(null);
+  
+  // Create an instance of the service
+  const [walletService] = useState(() => new WalletAnalyticsService());
 
-  useEffect(() => {
-    if (contractAddress) {
-      fetchRealTimeData();
-    }
-  }, [contractAddress, network]);
-
-  const fetchRealTimeData = async () => {
+  const fetchRealTimeData = useCallback(async () => {
+    if (!contractAddress) return;
+    
     setLoading(true);
     setError(null);
     
     try {
-      const analytics = new WalletAnalyticsService();
+      // Use the instance method instead of static method
+      const result = await walletService.getRealTimeTokenData(contractAddress, network);
+      setRealTimeData(result);
+      setLastUpdated(new Date());
       
-      // Extract real token metadata
-      const metadata = await analytics.getTokenMetadata(contractAddress, network);
-      
-      // Get top holders for analysis
-      const holders = await analytics.getTopHolders(contractAddress, network, 100);
-      
-      // Classify wallets
-      const classification = await analytics.classifyWallets(holders, contractAddress);
-      
-      // Get liquidity data
-      const liquidityData = await analytics.getLiquidityData(contractAddress, network);
-      
-      // Get market cap data
-      const marketData = await analytics.getMarketData(contractAddress, network);
-      
-      // Calculate bundle and MEV statistics
-      const bundleStats = calculateBundleStats(classification.bundleWallets);
-      const mevStats = calculateMEVStats(classification.mevWallets);
-      const teamStats = calculateTeamStats(classification.teamWallets);
-      
-      setTokenData({
-        ...metadata,
-        liquidityPool: liquidityData,
-        marketCap: marketData
-      });
-      
-      setAnalysisResults({
-        bundleWallets: classification.bundleWallets,
-        mevWallets: classification.mevWallets,
-        teamWallets: classification.teamWallets,
-        bundleStats,
-        mevStats,
-        teamStats
-      });
-      
+      if (result.errors.length > 0) {
+        console.warn('Some API calls failed:', result.errors);
+      }
     } catch (err) {
-      console.error('Error fetching real-time data:', err);
       setError(err.message);
+      console.error('Failed to fetch real-time data:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [contractAddress, network, walletService]);
 
-  const calculateBundleStats = (bundleWallets) => {
-    if (!bundleWallets || bundleWallets.length === 0) {
-      return { total: 0, spent: 0, tokens: 0, hold: 0, sold: 0, transfer: 0 };
+  useEffect(() => {
+    fetchRealTimeData();
+  }, [fetchRealTimeData]);
+
+  useEffect(() => {
+    if (autoRefresh) {
+      const interval = setInterval(fetchRealTimeData, 30000); // Refresh every 30 seconds
+      setRefreshInterval(interval);
+      return () => clearInterval(interval);
+    } else if (refreshInterval) {
+      clearInterval(refreshInterval);
+      setRefreshInterval(null);
     }
-    
-    const total = bundleWallets.length;
-    const spent = bundleWallets.reduce((sum, wallet) => sum + (wallet.totalSpent || 0), 0);
-    const tokens = bundleWallets.reduce((sum, wallet) => sum + (wallet.tokenBalance || 0), 0);
-    
-    const holdCount = bundleWallets.filter(w => w.status === 'holding').length;
-    const soldCount = bundleWallets.filter(w => w.status === 'sold').length;
-    const transferCount = bundleWallets.filter(w => w.status === 'transfer').length;
-    
-    return {
-      total,
-      spent,
-      tokens,
-      hold: total > 0 ? ((holdCount / total) * 100).toFixed(1) : 0,
-      sold: total > 0 ? ((soldCount / total) * 100).toFixed(1) : 0,
-      transfer: total > 0 ? ((transferCount / total) * 100).toFixed(1) : 0
-    };
-  };
-
-  const calculateMEVStats = (mevWallets) => {
-    if (!mevWallets || mevWallets.length === 0) {
-      return { total: 0, spent: 0, tokens: 0, supply: 0, hold: 0, sold: 0, transfer: 0 };
-    }
-    
-    const total = mevWallets.length;
-    const spent = mevWallets.reduce((sum, wallet) => sum + (wallet.totalSpent || 0), 0);
-    const tokens = mevWallets.reduce((sum, wallet) => sum + (wallet.tokenBalance || 0), 0);
-    
-    // Calculate MEV supply percentage based on total token supply
-    const totalSupplyPercentage = mevWallets.reduce((sum, wallet) => {
-      const percentage = parseFloat(wallet.percentage) || 0;
-      return sum + percentage;
-    }, 0);
-    
-    const holdCount = mevWallets.filter(w => w.status === 'holding').length;
-    const soldCount = mevWallets.filter(w => w.status === 'sold').length;
-    const transferCount = mevWallets.filter(w => w.status === 'transfer').length;
-    
-    return {
-      total,
-      spent,
-      tokens,
-      supply: totalSupplyPercentage.toFixed(1), // ✅ Calculate actual MEV supply percentage
-      hold: total > 0 ? ((holdCount / total) * 100).toFixed(1) : 0,
-      sold: total > 0 ? ((soldCount / total) * 100).toFixed(1) : 0,
-      transfer: total > 0 ? ((transferCount / total) * 100).toFixed(1) : 0
-    };
-  };
-
-  const calculateTeamStats = (teamWallets) => {
-    if (!teamWallets || teamWallets.length === 0) {
-      return { bundled: 0, total: 0 };
-    }
-    
-    const totalPercentage = teamWallets.reduce((sum, wallet) => {
-      const percentage = parseFloat(wallet.percentage) || 0;
-      return sum + percentage;
-    }, 0);
-    
-    // Ensure totalPercentage is a valid number before calling toFixed
-    const validPercentage = isNaN(totalPercentage) ? 0 : totalPercentage;
-    
-    return {
-      bundled: validPercentage.toFixed(1),
-      total: validPercentage.toFixed(1)
-    };
-  };
-
-  const formatNumber = (num) => {
-    if (num >= 1e9) return `${(num / 1e9).toFixed(1)}B`;
-    if (num >= 1e6) return `${(num / 1e6).toFixed(1)}M`;
-    if (num >= 1e3) return `${(num / 1e3).toFixed(1)}K`;
-    return num.toString();
-  };
-
-  const formatEther = (wei) => {
-    return `${(parseFloat(wei) / 1e18).toFixed(2)} Ξ`;
-  };
-
-  const formatUSD = (value) => {
-    return `$${(value / 1000).toFixed(1)}k`;
-  };
+  }, [autoRefresh, fetchRealTimeData]);
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
   };
 
-  if (loading) {
-    return (
-      <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-700 rounded-xl p-6 text-center">
-        <RefreshCw className="w-8 h-8 text-blue-400 animate-spin mx-auto mb-4" />
-        <p className="text-gray-300">Extracting real-time data...</p>
-      </div>
-    );
-  }
+  const formatNumber = (num, decimals = 2) => {
+    if (num === 0) return '0';
+    if (num < 0.01) return num.toExponential(2);
+    if (num >= 1e9) return (num / 1e9).toFixed(decimals) + 'B';
+    if (num >= 1e6) return (num / 1e6).toFixed(decimals) + 'M';
+    if (num >= 1e3) return (num / 1e3).toFixed(decimals) + 'K';
+    return num.toFixed(decimals);
+  };
 
-  if (error) {
-    return (
-      <div className="bg-gray-900/50 backdrop-blur-sm border border-red-700 rounded-xl p-6 text-center">
-        <p className="text-red-400 mb-4">Error: {error}</p>
-        <button 
-          onClick={fetchRealTimeData}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
+  const formatPercentage = (num) => {
+    const formatted = parseFloat(num).toFixed(2);
+    return `${formatted >= 0 ? '+' : ''}${formatted}%`;
+  };
 
-  if (!tokenData || !analysisResults) {
-    return (
-      <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-700 rounded-xl p-6 text-center">
-        <p className="text-gray-300">No data available</p>
-      </div>
-    );
-  }
-
-  const cardData = [
-    {
-      title: "Token Name",
-      icon: "🏷️",
-      content: `${tokenData.name} (${tokenData.symbol})`,
-      color: "text-blue-400"
-    },
-    {
-      title: "Total Supply",
-      icon: "🪙",
-      content: `${formatNumber(tokenData.formattedSupply)} ${tokenData.symbol}`,
-      color: "text-green-400"
-    },
-    {
-      title: "Liquidity Pool",
-      icon: "💧",
-      content: (
-        <div className="text-xs">
-          <div>Start LP: {formatNumber(tokenData.liquidityPool?.startLP || 0)} {tokenData.symbol}</div>
-          <div>ETH: {formatEther(tokenData.liquidityPool?.eth || 0)}</div>
-          <div>No-LP: {tokenData.liquidityPool?.noLPSupply || 0}%</div>
-        </div>
-      ),
-      color: "text-cyan-400"
-    },
-    {
-      title: "Market Cap",
-      icon: "🧢",
-      content: (
-        <div className="text-xs">
-          <div>Launch: {formatUSD(tokenData.marketCap?.launch || 0)}</div>
-          <div>Current: {formatUSD(tokenData.marketCap?.current || 0)}</div>
-        </div>
-      ),
-      color: "text-yellow-400"
-    },
-    {
-      title: "Bundle",
-      icon: "🎁",
-      content: (
-        <div className="text-xs">
-          <div>Wallets: {analysisResults.bundleStats.total}</div>
-          <div>Spent: {formatEther(analysisResults.bundleStats.spent)}</div>
-          <div>Tokens: {formatNumber(analysisResults.bundleStats.tokens)}</div>
-        </div>
-      ),
-      color: "text-purple-400"
-    },
-    {
-      title: "Team Supply",
-      icon: "👥",
-      content: (
-        <div className="text-xs">
-          <div>Bundled: {analysisResults.teamStats.bundled}%</div>
-          <div>Total: {analysisResults.teamStats.total}%</div>
-        </div>
-      ),
-      color: "text-orange-400"
-    },
-    {
-      title: "MEVs",
-      icon: "🤖",
-      content: (
-        <div className="text-xs">
-          <div>Wallets: {analysisResults.mevStats.total}</div>
-          <div>Spent: {formatEther(analysisResults.mevStats.spent)}</div>
-          <div>Tokens: {formatNumber(analysisResults.mevStats.tokens)}</div>
-        </div>
-      ),
-      color: "text-red-400"
-    },
-    {
-      title: "MEV Supply",
-      icon: "🎯",
-      content: `${analysisResults.mevStats.supply}%`,
-      color: "text-pink-400"
-    },
-    {
-      title: "Bundle Wallets",
-      icon: "💼",
-      content: (
-        <div className="text-xs">
-          <div>Hold: {analysisResults.bundleStats.hold}%</div>
-          <div>Sold: {analysisResults.bundleStats.sold}%</div>
-          <div>Transfer: {analysisResults.bundleStats.transfer}%</div>
-          <div className="text-gray-400 mt-1">(Wallets 1-{analysisResults.bundleStats.total})</div>
-        </div>
-      ),
-      color: "text-indigo-400"
-    },
-    {
-      title: "MEV Wallets",
-      icon: "🤖",
-      content: (
-        <div className="text-xs">
-          <div>Hold: {analysisResults.mevStats.hold}%</div>
-          <div>Sold: {analysisResults.mevStats.sold}%</div>
-          <div>Transfer: {analysisResults.mevStats.transfer}%</div>
-          <div className="text-gray-400 mt-1">(Wallets 1-{analysisResults.mevStats.total})</div>
-          <div className="text-red-400 text-lg mt-2">🔴🔴🔴</div>
-        </div>
-      ),
-      color: "text-red-400"
+  const getHealthColor = (health) => {
+    switch (health) {
+      case 'Excellent': return 'text-green-600';
+      case 'Good': return 'text-blue-600';
+      case 'Fair': return 'text-yellow-600';
+      case 'Poor': return 'text-red-600';
+      default: return 'text-gray-600';
     }
-  ];
+  };
+
+  const getPriceChangeColor = (change) => {
+    if (change > 0) return 'text-green-600';
+    if (change < 0) return 'text-red-600';
+    return 'text-gray-600';
+  };
+
+  if (loading && !realTimeData) {
+    return (
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="flex items-center justify-center h-64">
+          <RefreshCw className="animate-spin h-8 w-8 text-blue-600" />
+          <span className="ml-2 text-gray-600">Loading real-time data...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !realTimeData) {
+    return (
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="flex items-center justify-center h-64 text-red-600">
+          <AlertTriangle className="h-8 w-8 mr-2" />
+          <div>
+            <p className="font-semibold">Failed to load real-time data</p>
+            <p className="text-sm">{error}</p>
+            <button 
+              onClick={fetchRealTimeData}
+              className="mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const data = realTimeData?.data;
+  if (!data) return null;
 
   return (
-    <motion.div 
-      className="bg-gray-900/50 backdrop-blur-sm border border-gray-700 rounded-xl p-6"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-    >
+    <div className="bg-white rounded-lg shadow-md p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-bold text-white">Real-Time Token Analysis</h3>
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={() => copyToClipboard(contractAddress)}
-            className="text-blue-400 hover:text-blue-300 p-1"
-            title="Copy Contract Address"
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h3 className="text-xl font-bold text-gray-800">
+            Real-Time Token Analysis
+          </h3>
+          <p className="text-sm text-gray-600">
+            {data.tokenInfo.name} ({data.tokenInfo.symbol})
+          </p>
+        </div>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            className={`px-3 py-1 rounded text-sm ${
+              autoRefresh 
+                ? 'bg-green-100 text-green-800' 
+                : 'bg-gray-100 text-gray-800'
+            }`}
           >
-            <Copy className="w-4 h-4" />
+            {autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF'}
           </button>
-          <button 
+          <button
             onClick={fetchRealTimeData}
-            className="text-green-400 hover:text-green-300 p-1"
-            title="Refresh Data"
+            disabled={loading}
+            className="flex items-center px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+          <button
+            onClick={() => copyToClipboard(JSON.stringify(data, null, 2))}
+            className="flex items-center px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
+          >
+            <Copy className="h-4 w-4 mr-1" />
+            Copy
           </button>
         </div>
       </div>
 
-      {/* Contract Address */}
-      <div className="mb-6 p-3 bg-gray-800/50 rounded-lg">
-        <div className="text-sm text-gray-400 mb-1">📃 Contract Address:</div>
-        <div className="text-blue-400 font-mono text-sm break-all">{contractAddress}</div>
+      {/* Data Quality Indicator */}
+      <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+            <span className="font-medium">Data Sources: {realTimeData.sources.join(', ')}</span>
+          </div>
+          <span className="text-sm text-gray-600">
+            Last updated: {lastUpdated?.toLocaleTimeString()}
+          </span>
+        </div>
+        {realTimeData.errors.length > 0 && (
+          <div className="mt-2 text-sm text-yellow-600">
+            <AlertTriangle className="h-4 w-4 inline mr-1" />
+            Some data sources unavailable: {realTimeData.errors.length} errors
+          </div>
+        )}
       </div>
 
-      {/* 10 Cards Grid - 5 per row */}
-      <div className="grid grid-cols-5 gap-4">
-        {cardData.map((card, index) => (
-          <motion.div
-            key={index}
-            className="bg-gray-800/50 border border-gray-600 rounded-lg p-3 hover:border-gray-500 transition-all duration-200"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3, delay: index * 0.05 }}
-          >
-            <div className="text-center">
-              <div className="text-2xl mb-2">{card.icon}</div>
-              <div className={`text-sm font-semibold mb-2 ${card.color}`}>
-                {card.title}
-              </div>
-              <div className="text-gray-300 text-xs">
-                {typeof card.content === 'string' ? card.content : card.content}
-              </div>
-            </div>
-          </motion.div>
-        ))}
+      {/* Price Information */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <h4 className="font-semibold text-blue-800 mb-2">Price (USD)</h4>
+          <p className="text-2xl font-bold text-blue-900">
+            ${formatNumber(data.price.usd, 6)}
+          </p>
+          <p className={`text-sm ${getPriceChangeColor(data.price.change24h)}`}>
+            {data.price.change24h > 0 ? <TrendingUp className="inline h-4 w-4" /> : <TrendingDown className="inline h-4 w-4" />}
+            {formatPercentage(data.price.change24h)} (24h)
+          </p>
+        </div>
+        
+        <div className="bg-green-50 p-4 rounded-lg">
+          <h4 className="font-semibold text-green-800 mb-2">Market Cap</h4>
+          <p className="text-2xl font-bold text-green-900">
+            ${formatNumber(data.marketCap)}
+          </p>
+          <p className="text-sm text-green-700">
+            FDV: ${formatNumber(data.fdv)}
+          </p>
+        </div>
+        
+        <div className="bg-purple-50 p-4 rounded-lg">
+          <h4 className="font-semibold text-purple-800 mb-2">24h Volume</h4>
+          <p className="text-2xl font-bold text-purple-900">
+            ${formatNumber(data.volume.h24)}
+          </p>
+          <p className="text-sm text-purple-700">
+            6h: ${formatNumber(data.volume.h6)}
+          </p>
+        </div>
       </div>
 
-      {/* Last Updated */}
-      <div className="mt-6 text-center text-xs text-gray-400">
-        Last updated: {new Date().toLocaleString()}
+      {/* Liquidity Information */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="bg-yellow-50 p-4 rounded-lg">
+          <h4 className="font-semibold text-yellow-800 mb-2">Liquidity</h4>
+          <p className="text-xl font-bold text-yellow-900">
+            ${formatNumber(data.liquidity.usd)}
+          </p>
+          <p className="text-sm text-yellow-700">
+            Health: <span className={getHealthColor(data.analytics.liquidityHealth)}>
+              {data.analytics.liquidityHealth}
+            </span>
+          </p>
+        </div>
+        
+        <div className="bg-indigo-50 p-4 rounded-lg">
+          <h4 className="font-semibold text-indigo-800 mb-2">Trading Activity</h4>
+          <div className="space-y-1">
+            <p className="text-sm">
+              24h Buys: <span className="font-semibold">{data.transactions.h24.buys}</span>
+            </p>
+            <p className="text-sm">
+              24h Sells: <span className="font-semibold">{data.transactions.h24.sells}</span>
+            </p>
+            <p className="text-sm">
+              Buy Pressure: <span className="font-semibold text-green-600">
+                {data.analytics.buyPressure}%
+              </span>
+            </p>
+          </div>
+        </div>
       </div>
-    </motion.div>
+
+      {/* Analytics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="bg-red-50 p-4 rounded-lg">
+          <h4 className="font-semibold text-red-800 mb-2">Risk Metrics</h4>
+          <div className="space-y-2">
+            <p className="text-sm">
+              Volatility: <span className={`font-semibold ${
+                data.analytics.volatility === 'High' ? 'text-red-600' :
+                data.analytics.volatility === 'Medium' ? 'text-yellow-600' : 'text-green-600'
+              }`}>
+                {data.analytics.volatility}
+              </span>
+            </p>
+            <p className="text-sm">
+              Market Health: <span className={getHealthColor(data.analytics.marketHealth.rating)}>
+                {data.analytics.marketHealth.rating} ({data.analytics.marketHealth.score}/100)
+              </span>
+            </p>
+          </div>
+        </div>
+        
+        <div className="bg-teal-50 p-4 rounded-lg">
+          <h4 className="font-semibold text-teal-800 mb-2">DEX Information</h4>
+          <div className="space-y-1">
+            <p className="text-sm">
+              Primary DEX: <span className="font-semibold">{data.dexInfo.name}</span>
+            </p>
+            <p className="text-sm">
+              Pair Age: <span className="font-semibold">
+                {data.pairAge > 0 ? `${Math.floor(data.pairAge / (1000 * 60 * 60 * 24))} days` : 'Unknown'}
+              </span>
+            </p>
+            {data.dexInfo.pairAddress && (
+              <p className="text-xs text-gray-600 truncate">
+                Pair: {data.dexInfo.pairAddress}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Market Health Factors */}
+      {data.analytics.marketHealth.factors.length > 0 && (
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <h4 className="font-semibold text-gray-800 mb-2">Market Health Factors</h4>
+          <div className="flex flex-wrap gap-2">
+            {data.analytics.marketHealth.factors.map((factor, index) => (
+              <span 
+                key={index}
+                className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+              >
+                {factor}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

@@ -6,7 +6,7 @@ import {
   Search, 
   FlaskConical,
   ArrowRight,
-  Users
+  Users // Add Users icon for Team & Bundle Scanner
 } from 'lucide-react';
 
 const Dashboard = ({ setActiveSection }) => {
@@ -20,18 +20,14 @@ const Dashboard = ({ setActiveSection }) => {
       features: ['URL Analysis', 'Domain Reputation', 'Real-time Scanning'],
       clickable: true
     },
+    // Add Team & Bundle Scanner card
     {
       id: 'team-bundle-scanner',
-      title: 'Team & Bundle Wallet Scanner',
-      description: 'Comprehensive wallet tracking and rug pull detection system',
+      title: 'Team & Bundle Scanner',
+      description: 'Analyze token holders to identify team wallets and bundle addresses',
       icon: Users,
       color: 'from-blue-600 to-blue-400',
-      features: [
-        'Team Wallet Detection',
-        'Bundle Wallet Analysis', 
-        'Real-time Monitoring',
-        'Alert System'
-      ],
+      features: ['Multi-chain Support', 'Holder Analysis', 'Team Detection', 'Bundle Identification'],
       clickable: true
     },
     {
@@ -61,7 +57,7 @@ const Dashboard = ({ setActiveSection }) => {
   ];
 
   const handleCardClick = (serviceId, clickable) => {
-    if (clickable) {
+    if (clickable && setActiveSection) {
       setActiveSection(serviceId);
     }
   };
@@ -123,14 +119,14 @@ const Dashboard = ({ setActiveSection }) => {
                 
                 <h3 className="text-xl font-bold text-white mb-2">{service.title}</h3>
                 
-                {/* Only show description and features for non-phishing-scanner cards */}
+                {/* Show description and features for all cards except phishing-scanner */}
                 {service.id !== 'phishing-scanner' && (
                   <>
                     <p className="text-gray-400 text-sm mb-4 leading-relaxed">{service.description}</p>
                     
                     {service.clickable ? (
                       <div className="space-y-2">
-                        {service.features.map((feature, featureIndex) => (
+                        {service.features && service.features.map((feature, featureIndex) => (
                           <div key={featureIndex} className="flex items-center text-xs text-gray-500">
                             <div className="w-1.5 h-1.5 bg-gray-600 rounded-full mr-2"></div>
                             {feature}

@@ -4,25 +4,22 @@
   "description": "CSecurity DApp - Token Security Analysis Platform",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
-    "build": "cd client && npm install && npm run build",
-    "start": "cd server && npm start",
-    "client:dev": "cd client && npm start",
-    "client:build": "cd client && npm run build",
-    "client:install": "cd client && npm install",
-    "server:dev": "cd server && npm run dev",
-    "server:start": "cd server && npm start",
-    "server:install": "cd server && npm install",
-    "install:all": "npm run client:install && npm run server:install",
-    "test": "npm run client:test && npm run server:test",
-    "client:test": "cd client && npm test",
-    "server:test": "cd server && npm test"
+    "dev": "cd client && npm start",
+    "build": "cd client && npm run build",
+    "start": "cd client && npm start",
+    "install": "cd client && npm install",
+    "test": "cd client && npm test",
+    "deploy:vercel": "vercel --prod",
+    "deploy:netlify": "netlify deploy --prod"
   },
-  "devDependencies": {
-    "concurrently": "^7.6.0"
+  "dependencies": {
+    "ethers": "^6.15.0",
+    "framer-motion": "^12.23.11",
+    "lucide-react": "^0.528.0",
+    "react-toastify": "^11.0.5"
   },
-  "workspaces": [
-    "client",
-    "server"
-  ]
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
 }
