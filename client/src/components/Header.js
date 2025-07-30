@@ -3,12 +3,28 @@ import { motion } from 'framer-motion';
 import { gsap } from 'gsap';
 import { Wallet, LogOut, ArrowLeft, TrendingUp, TrendingDown } from 'lucide-react';
 import { useWeb3 } from '../context/Web3Context';
+import { useNavigate } from 'react-router-dom';
 
 const Header = ({ activeSection, setActiveSection }) => {
   const { isConnected, account, connectWallet, disconnectWallet } = useWeb3();
+  const navigate = useNavigate();
   const headerRef = useRef(null);
   const [cryptoData, setCryptoData] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Function to handle session termination and redirect to login
+  const handleBackToLogin = () => {
+    // Clear all session data
+    localStorage.removeItem('walletConnected');
+    localStorage.removeItem('walletAddress');
+    localStorage.removeItem('loginTime');
+    
+    // Disconnect wallet
+    disconnectWallet();
+    
+    // Redirect to login page
+    navigate('/login');
+  };
 
   // Fetch real-time crypto data
   const fetchCryptoData = async () => {
@@ -95,16 +111,16 @@ const Header = ({ activeSection, setActiveSection }) => {
         <div className="flex items-center justify-between">
           {/* Logo and Back Button */}
           <div className="flex items-center space-x-4">
-            {activeSection !== 'dashboard' && (
-              <motion.button
-                onClick={() => setActiveSection('dashboard')}
-                className="p-2 rounded-lg bg-gray-800/50 hover:bg-gray-700/50 transition-colors backdrop-blur-sm"
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <ArrowLeft className="w-5 h-5 text-white" />
-              </motion.button>
-            )}
+            {/* Always show back/logout button */}
+            <motion.button
+              onClick={handleBackToLogin}
+              className="p-2 rounded-lg bg-gray-800/50 hover:bg-red-600/50 transition-colors backdrop-blur-sm border border-red-500/30"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              title="End Session & Return to Login"
+            >
+              <ArrowLeft className="w-5 h-5 text-red-400" />
+            </motion.button>
             <img src="/AioAi.jpg" alt="Aion Ai" className="h-8 w-8 rounded" />
           </div>
 
