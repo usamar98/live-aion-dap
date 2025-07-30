@@ -1089,6 +1089,20 @@ const TeamBundleWalletScanner = () => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
+  const formatPercentage = (percentage) => {
+    const numPercentage = parseFloat(percentage);
+    if (numPercentage === 0 || numPercentage < 0.0001) {
+      return '<0.0001%';
+    }
+    if (numPercentage < 0.01) {
+      return numPercentage.toFixed(4) + '%';
+    }
+    if (numPercentage < 1) {
+      return numPercentage.toFixed(3) + '%';
+    }
+    return numPercentage.toFixed(2) + '%';
+  };
+
   const getExplorerUrl = (address) => {
     const explorers = {
       ethereum: 'https://etherscan.io/address/',
@@ -1419,7 +1433,7 @@ const TeamBundleWalletScanner = () => {
                         <a href={getExplorerUrl(wallet.address)} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
                           {formatAddress(wallet.address)}
                         </a>
-                        <span className="text-sm text-gray-300">{wallet.percentage}%</span>
+                        <span className="text-sm text-gray-300">{formatPercentage(wallet.percentage)}</span>
                       </div>
                       
                       {/* Transaction Details */}
@@ -1546,7 +1560,7 @@ const TeamBundleWalletScanner = () => {
                         <a href={getExplorerUrl(wallet.address)} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
                           {formatAddress(wallet.address)}
                         </a>
-                        <span className="text-sm text-gray-300">{wallet.percentage}%</span>
+                        <span className="text-sm text-gray-300">{formatPercentage(wallet.percentage)}</span>
                       </div>
                       
                       {/* Transaction Details */}
