@@ -1122,77 +1122,90 @@ const TeamBundleWalletScanner = () => {
   }, []);
 
   return (
-    <div className="bg-gray-800 rounded-lg p-6 mb-6">
-      <ToastContainer position="top-right" theme="dark" />
-      
-      <div className="flex items-center mb-4">
-        <div className="w-3 h-3 bg-blue-500 rounded-full mr-3"></div>
-        <h2 className="text-xl font-semibold text-white">Team & Bundle Wallet Scanner</h2>
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Full Page Wallet Background */}
+      <div className="fixed inset-0 z-0">
+        <img 
+          src="/wallet.jpg" 
+          alt="Wallet Background" 
+          className="w-full h-full object-cover opacity-15"
+        />
+        <div className="absolute inset-0 bg-gray-900/85"></div>
       </div>
       
-      {/* Input Section */}
-      <div className="mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-2 text-gray-300">Token Address</label>
-            <input
-              type="text"
-              value={tokenAddress}
-              onChange={(e) => setTokenAddress(e.target.value)}
-              placeholder="0x..."
-              className="w-full px-3 py-2 bg-gray-700 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+      {/* Content Container */}
+      <div className="relative z-10 p-6">
+        <div className="bg-gray-800/60 backdrop-blur-sm rounded-lg p-6 mb-6">
+          <ToastContainer position="top-right" theme="dark" />
+          
+          <div className="flex items-center mb-4">
+            <div className="w-3 h-3 bg-blue-500 rounded-full mr-3"></div>
+            <h2 className="text-xl font-semibold text-white">Team & Bundle Wallet Scanner</h2>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-2 text-gray-300">Chain</label>
-            <select
-              value={chain}
-              onChange={(e) => setChain(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-700 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="ethereum">Ethereum</option>
-              <option value="bsc">BSC</option>
-              <option value="polygon">Polygon</option>
-              <option value="arbitrum">Arbitrum</option>
-              <option value="avalanche">Avalanche</option>
-              <option value="fantom">Fantom</option>
-            </select>
+          
+          {/* Input Section */}
+          <div className="mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-300">Token Address</label>
+                <input
+                  type="text"
+                  value={tokenAddress}
+                  onChange={(e) => setTokenAddress(e.target.value)}
+                  placeholder="0x..."
+                  className="w-full px-3 py-2 bg-gray-700 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-300">Chain</label>
+                <select
+                  value={chain}
+                  onChange={(e) => setChain(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-700 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="ethereum">Ethereum</option>
+                  <option value="bsc">BSC</option>
+                  <option value="polygon">Polygon</option>
+                  <option value="arbitrum">Arbitrum</option>
+                  <option value="avalanche">Avalanche</option>
+                  <option value="fantom">Fantom</option>
+                </select>
+              </div>
+              <div className="flex items-end">
+                <button
+                  onClick={startWatching}
+                  disabled={loading}
+                  className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 rounded-md font-medium text-white"
+                >
+                  {loading ? 'Analyzing...' : 'Start Analysis'}
+                </button>
+              </div>
+            </div>
           </div>
-          <div className="flex items-end">
-            <button
-              onClick={startWatching}
-              disabled={loading}
-              className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 rounded-md font-medium text-white"
-            >
-              {loading ? 'Analyzing...' : 'Start Analysis'}
-            </button>
-          </div>
-        </div>
-      </div>
 
-      {/* Tabs */}
-      <div className="mb-6">
-        <div className="border-b border-gray-700">
-          <nav className="-mb-px flex space-x-8">
-            {['analysis', 'alerts', 'watchlist'].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === tab
-                    ? 'border-blue-500 text-blue-400'
-                    : 'border-transparent text-gray-400 hover:text-gray-300'
-                }`}
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
-            ))}
-          </nav>
-        </div>
-      </div>
+          {/* Tabs */}
+          <div className="mb-6">
+            <div className="border-b border-gray-700">
+              <nav className="-mb-px flex space-x-8">
+                {['analysis', 'alerts', 'watchlist'].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                      activeTab === tab
+                        ? 'border-blue-500 text-blue-400'
+                        : 'border-transparent text-gray-400 hover:text-gray-300'
+                    }`}
+                  >
+                    {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  </button>
+                ))}
+              </nav>
+            </div>
+          </div>
 
-      {/* Content */}
-      {activeTab === 'analysis' && (
+        {/* Content */}
+        {activeTab === 'analysis' && (
         <div className="grid grid-cols-1 gap-6">
           {/* Enhanced Token Information */}
           {walletDisplayData.tokenData && (
@@ -1208,7 +1221,7 @@ const TeamBundleWalletScanner = () => {
                   >
                     📊 View on DexScreener
                   </a>
-                )}
+                  )}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Basic Info */}
@@ -1739,6 +1752,8 @@ const TeamBundleWalletScanner = () => {
           )}
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
 };

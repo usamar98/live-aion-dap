@@ -7,16 +7,42 @@ import { useWeb3 } from '../context/Web3Context';
 const Header = ({ activeSection, setActiveSection }) => {
   const { isConnected, account, connectWallet, disconnectWallet } = useWeb3();
   const headerRef = useRef(null);
-  const [cryptoData, setCryptoData] = useState([
-    { symbol: 'BTC', price: 43250.50, change: 2.45, isPositive: true },
-    { symbol: 'ETH', price: 2580.75, change: -1.23, isPositive: false },
-    { symbol: 'BNB', price: 315.20, change: 0.85, isPositive: true },
-    { symbol: 'ADA', price: 0.485, change: 3.12, isPositive: true },
-    { symbol: 'SOL', price: 98.45, change: -0.67, isPositive: false },
-    { symbol: 'DOT', price: 7.23, change: 1.89, isPositive: true },
-    { symbol: 'MATIC', price: 0.92, change: -2.15, isPositive: false },
-    { symbol: 'AVAX', price: 36.78, change: 4.56, isPositive: true }
-  ]);
+  const [cryptoData, setCryptoData] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch real-time crypto data
+  const fetchCryptoData = async () => {
+    try {
+      const response = await fetch(
+        'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=10&page=1&sparkline=false&price_change_percentage=24h'
+      );
+      const data = await response.json();
+      
+      const formattedData = data.map(coin => ({
+        symbol: coin.symbol.toUpperCase(),
+        name: coin.name,
+        price: coin.current_price,
+        change: coin.price_change_percentage_24h || 0,
+        isPositive: (coin.price_change_percentage_24h || 0) >= 0,
+        icon: coin.image,
+        marketCap: coin.market_cap
+      }));
+      
+      setCryptoData(formattedData);
+      setLoading(false);
+    } catch (error) {
+      console.error('Failed to fetch crypto data:', error);
+      // Fallback to some popular tokens if API fails
+      setCryptoData([
+        { symbol: 'BTC', name: 'Bitcoin', price: 43250.50, change: 2.45, isPositive: true, icon: null },
+        { symbol: 'ETH', name: 'Ethereum', price: 2580.75, change: -1.23, isPositive: false, icon: null },
+        { symbol: 'BNB', name: 'BNB', price: 315.20, change: 0.85, isPositive: true, icon: null },
+        { symbol: 'ADA', name: 'Cardano', price: 0.485, change: 3.12, isPositive: true, icon: null },
+        { symbol: 'SOL', name: 'Solana', price: 98.45, change: -0.67, isPositive: false, icon: null }
+      ]);
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     gsap.fromTo(headerRef.current, 
@@ -24,15 +50,13 @@ const Header = ({ activeSection, setActiveSection }) => {
       { y: 0, opacity: 1, duration: 1, ease: 'power3.out' }
     );
 
-    // Simulate real-time price updates
+    // Initial fetch
+    fetchCryptoData();
+
+    // Update crypto data every 30 seconds
     const interval = setInterval(() => {
-      setCryptoData(prev => prev.map(coin => ({
-        ...coin,
-        price: coin.price + (Math.random() - 0.5) * coin.price * 0.02,
-        change: (Math.random() - 0.5) * 10,
-        isPositive: Math.random() > 0.5
-      })));
-    }, 3000);
+      fetchCryptoData();
+    }, 30000);
 
     return () => clearInterval(interval);
   }, []);
@@ -42,13 +66,27 @@ const Header = ({ activeSection, setActiveSection }) => {
   };
 
   const formatPrice = (price) => {
-    return price < 1 ? price.toFixed(4) : price.toFixed(2);
+    if (price >= 1000) {
+      return `$${(price / 1000).toFixed(1)}K`;
+    }
+    return price < 1 ? `$${price.toFixed(4)}` : `$${price.toFixed(2)}`;
+  };
+
+  const formatMarketCap = (marketCap) => {
+    if (marketCap >= 1e12) {
+      return `$${(marketCap / 1e12).toFixed(1)}T`;
+    } else if (marketCap >= 1e9) {
+      return `$${(marketCap / 1e9).toFixed(1)}B`;
+    } else if (marketCap >= 1e6) {
+      return `$${(marketCap / 1e6).toFixed(1)}M`;
+    }
+    return `$${marketCap?.toLocaleString() || 'N/A'}`;
   };
 
   return (
     <motion.header 
       ref={headerRef}
-      className="sticky top-0 z-30 bg-black/80 backdrop-blur-sm border-b border-gray-800"
+      className="sticky top-0 z-30 bg-transparent backdrop-blur-md border-b border-gray-800/30"
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.8, ease: 'easeOut' }}
@@ -60,7 +98,7 @@ const Header = ({ activeSection, setActiveSection }) => {
             {activeSection !== 'dashboard' && (
               <motion.button
                 onClick={() => setActiveSection('dashboard')}
-                className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors"
+                className="p-2 rounded-lg bg-gray-800/50 hover:bg-gray-700/50 transition-colors backdrop-blur-sm"
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
               >
@@ -70,30 +108,52 @@ const Header = ({ activeSection, setActiveSection }) => {
             <img src="/AioAi.jpg" alt="Aion Ai" className="h-8 w-8 rounded" />
           </div>
 
-          {/* Crypto Ticker */}
+          {/* Real-time Crypto Ticker */}
           <div className="flex-1 mx-8 overflow-hidden">
-            <div className="relative h-8 bg-gray-900/50 rounded-lg">
+            <div className="relative h-10">
               <div className="absolute inset-0 flex items-center">
-                <div className="animate-marquee flex space-x-8 whitespace-nowrap">
-                  {[...cryptoData, ...cryptoData, ...cryptoData].map((coin, index) => (
-                    <div key={`${coin.symbol}-${index}`} className="flex items-center space-x-2 text-sm">
-                      <span className="text-white font-semibold">{coin.symbol}</span>
-                      <span className="text-gray-300">${formatPrice(coin.price)}</span>
-                      <div className={`flex items-center space-x-1 ${
-                        coin.isPositive ? 'text-green-400' : 'text-red-400'
-                      }`}>
-                        {coin.isPositive ? (
-                          <TrendingUp className="w-3 h-3" />
-                        ) : (
-                          <TrendingDown className="w-3 h-3" />
+                {loading ? (
+                  <div className="flex items-center justify-center w-full">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
+                    <span className="ml-2 text-gray-400 text-sm">Loading crypto data...</span>
+                  </div>
+                ) : (
+                  <div className="animate-marquee flex space-x-8 whitespace-nowrap">
+                    {[...cryptoData, ...cryptoData, ...cryptoData].map((coin, index) => (
+                      <div key={`${coin.symbol}-${index}`} className="flex items-center space-x-3 text-sm">
+                        {coin.icon && (
+                          <img 
+                            src={coin.icon} 
+                            alt={coin.name} 
+                            className="w-5 h-5 rounded-full"
+                            onError={(e) => { e.target.style.display = 'none'; }}
+                          />
                         )}
-                        <span className="text-xs">
-                          {coin.isPositive ? '+' : ''}{coin.change.toFixed(2)}%
-                        </span>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-white font-semibold">{coin.symbol}</span>
+                          <span className="text-gray-300 font-mono">{formatPrice(coin.price)}</span>
+                          <div className={`flex items-center space-x-1 ${
+                            coin.isPositive ? 'text-green-400' : 'text-red-400'
+                          }`}>
+                            {coin.isPositive ? (
+                              <TrendingUp className="w-3 h-3" />
+                            ) : (
+                              <TrendingDown className="w-3 h-3" />
+                            )}
+                            <span className="text-xs font-medium">
+                              {coin.isPositive ? '+' : ''}{coin.change.toFixed(2)}%
+                            </span>
+                          </div>
+                          {coin.marketCap && (
+                            <span className="text-gray-400 text-xs">
+                              MC: {formatMarketCap(coin.marketCap)}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -102,12 +162,12 @@ const Header = ({ activeSection, setActiveSection }) => {
           <div className="flex items-center space-x-4">
             {isConnected ? (
               <div className="flex items-center space-x-2">
-                <div className="px-3 py-2 bg-gray-800 rounded-lg text-sm font-medium text-white">
+                <div className="px-3 py-2 bg-gray-800/50 backdrop-blur-sm rounded-lg text-sm font-medium text-white border border-gray-700/30">
                   {formatAddress(account)}
                 </div>
                 <motion.button
                   onClick={disconnectWallet}
-                  className="p-2 rounded-lg bg-gray-800 hover:bg-red-600 transition-colors"
+                  className="p-2 rounded-lg bg-gray-800/50 hover:bg-red-600/50 transition-colors backdrop-blur-sm border border-gray-700/30"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.95 }}
                 >
@@ -117,12 +177,12 @@ const Header = ({ activeSection, setActiveSection }) => {
             ) : (
               <motion.button
                 onClick={connectWallet}
-                className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-gray-600 to-gray-500 text-white rounded-lg hover:from-gray-700 hover:to-gray-600 transition-all"
+                className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-gray-600/50 to-gray-500/50 text-white rounded-lg hover:from-gray-700/50 hover:to-gray-600/50 transition-all backdrop-blur-sm border border-gray-700/30"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
                 <Wallet className="w-4 h-4" />
-                <span>Connected</span>
+                <span>Connect Wallet</span>
               </motion.button>
             )}
           </div>
