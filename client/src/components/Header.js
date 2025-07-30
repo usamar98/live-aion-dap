@@ -13,6 +13,22 @@ const Header = ({ activeSection, setActiveSection }) => {
   const [loading, setLoading] = useState(true);
 
   // Function to handle session termination and redirect to login
+  // Function to handle back button behavior
+  const handleBackButton = () => {
+    if (activeSection === 'dashboard') {
+      // From dashboard, end session and redirect to login
+      localStorage.removeItem('walletConnected');
+      localStorage.removeItem('walletAddress');
+      localStorage.removeItem('loginTime');
+      disconnectWallet();
+      navigate('/login');
+    } else {
+      // From other sections, go back to dashboard
+      setActiveSection('dashboard');
+    }
+  };
+
+  // Remove the old handleBackToLogin function and replace it with handleBackButton
   const handleBackToLogin = () => {
     // Clear all session data
     localStorage.removeItem('walletConnected');
@@ -111,15 +127,14 @@ const Header = ({ activeSection, setActiveSection }) => {
         <div className="flex items-center justify-between">
           {/* Logo and Back Button */}
           <div className="flex items-center space-x-4">
-            {/* Always show back/logout button */}
             <motion.button
-              onClick={handleBackToLogin}
-              className="p-2 rounded-lg bg-gray-800/50 hover:bg-red-600/50 transition-colors backdrop-blur-sm border border-red-500/30"
+              onClick={handleBackButton}
+              className="p-2 rounded-lg bg-gray-800/50 hover:bg-blue-600/50 transition-colors backdrop-blur-sm border border-blue-500/30"
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.95 }}
-              title="End Session & Return to Login"
+              title={activeSection === 'dashboard' ? 'End Session & Return to Login' : 'Back to Dashboard'}
             >
-              <ArrowLeft className="w-5 h-5 text-red-400" />
+              <ArrowLeft className={`w-5 h-5 ${activeSection === 'dashboard' ? 'text-red-400' : 'text-blue-400'}`} />
             </motion.button>
             <img src="/AioAi.jpg" alt="Aion Ai" className="h-8 w-8 rounded" />
           </div>
