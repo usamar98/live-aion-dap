@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { ethers } from 'ethers';
 import { ToastContainer, toast } from 'react-toastify';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
+import * as d3 from 'd3';
 import 'react-toastify/dist/ReactToastify.css';
 
 const TeamBundleWalletScanner = () => {
@@ -27,6 +28,9 @@ const TeamBundleWalletScanner = () => {
   const [chartTimeframe, setChartTimeframe] = useState('1H');
   const [loadingChart, setLoadingChart] = useState(false);
   
+  // Add wallet state
+  const [walletAddress, setWalletAddress] = useState('');
+  
   const providerRef = useRef(null);
   const watchIntervalRef = useRef(null);
   const priceIntervalRef = useRef(null);
@@ -48,6 +52,261 @@ const TeamBundleWalletScanner = () => {
       );
     }
     return null;
+  };
+
+
+
+  // Bubble Map Component for visualizing wallet distribution
+  const BubbleMap = ({ holders, teamWallets, bundleWallets, tokenData }) => {
+    const svgRef = useRef();
+    const containerRef = useRef();
+    const [selectedBubble, setSelectedBubble] = useState(null);
+    const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+    // Responsive dimensions handler with 450px height
+    useEffect(() => {
+      const updateDimensions = () => {
+        if (containerRef.current) {
+          const rect = containerRef.current.getBoundingClientRect();
+          const width = Math.max(rect.width - 32, 800); // Minimum 800px width
+          // Responsive height: 450px on desktop, scales down on mobile
+          const height = window.innerWidth >= 768 ? 450 : Math.max(window.innerWidth * 0.6, 300);
+          setDimensions({ width, height });
+        }
+      };
+
+      updateDimensions();
+      window.addEventListener('resize', updateDimensions);
+      return () => window.removeEventListener('resize', updateDimensions);
+    }, []);
+
+    useEffect(() => {
+      if (!holders || holders.length === 0 || dimensions.width === 0) {
+        console.log('❌ BubbleMap: No holders data available or dimensions not set');
+        return;
+      }
+
+      console.log('🫧 BubbleMap: Processing', holders.length, 'holders');
+      console.log('🫧 Dimensions:', dimensions);
+
+      const svg = d3.select(svgRef.current);
+      svg.selectAll('*').remove();
+
+      const { width, height } = dimensions;
+
+      // Prepare data for bubble map with better scaling
+      const bubbleData = holders.slice(0, 30).map((holder, index) => {
+        const percentage = parseFloat(holder.percentage || 0);
+        const isTeam = teamWallets?.some(tw => tw.address?.toLowerCase() === holder.address?.toLowerCase()) || false;
+        const isBundle = bundleWallets?.some(bw => bw.address?.toLowerCase() === holder.address?.toLowerCase()) || false;
+        
+        // Responsive bubble sizes based on container dimensions
+        const baseRadius = Math.min(width, height) * 0.12;
+        let radius;
+        if (percentage > 5) {
+          radius = baseRadius;
+        } else if (percentage > 1) {
+          radius = baseRadius * 0.8;
+        } else if (percentage > 0.1) {
+          radius = baseRadius * 0.5;
+        } else {
+          radius = baseRadius * 0.3;
+        }
+
+        const bubble = {
+          id: holder.address,
+          address: holder.address,
+          percentage: percentage,
+          balance: holder.balance,
+          radius: radius,
+          type: isTeam ? 'team' : isBundle ? 'bundle' : 'normal',
+          color: isTeam ? '#ef4444' : isBundle ? '#f59e0b' : '#3b82f6',
+          x: Math.random() * (width - 100) + 50,
+          y: Math.random() * (height - 100) + 50
+        };
+
+        return bubble;
+      });
+
+      console.log('🫧 Created', bubbleData.length, 'bubbles with responsive sizing');
+
+      // Create force simulation with responsive forces
+      const simulation = d3.forceSimulation(bubbleData)
+        .force('charge', d3.forceManyBody().strength(-300))
+        .force('center', d3.forceCenter(width / 2, height / 2))
+        .force('collision', d3.forceCollide().radius(d => d.radius + 5))
+        .force('x', d3.forceX(width / 2).strength(0.05))
+        .force('y', d3.forceY(height / 2).strength(0.05));
+
+      // Create responsive SVG container
+      const container = svg
+        .attr('width', '100%')
+        .attr('height', height)
+        .attr('viewBox', `0 0 ${width} ${height}`)
+        .attr('preserveAspectRatio', 'xMidYMid meet')
+        .style('background', 'rgba(15, 23, 42, 0.3)')
+        .style('border-radius', '8px')
+        .style('border', '1px solid rgba(255, 255, 255, 0.1)')
+        .style('width', '100%')
+        .style('height', `${height}px`);
+
+      // Add a subtle grid pattern
+      const defs = container.append('defs');
+      const pattern = defs.append('pattern')
+        .attr('id', 'grid')
+        .attr('width', 50)
+        .attr('height', 50)
+        .attr('patternUnits', 'userSpaceOnUse');
+      
+      pattern.append('path')
+        .attr('d', 'M 50 0 L 0 0 0 50')
+        .attr('fill', 'none')
+        .attr('stroke', 'rgba(255, 255, 255, 0.05)')
+        .attr('stroke-width', 1);
+
+      container.append('rect')
+        .attr('width', width)
+        .attr('height', height)
+        .attr('fill', 'url(#grid)');
+
+      // Create bubbles
+      const bubbles = container.selectAll('.bubble')
+        .data(bubbleData)
+        .enter()
+        .append('g')
+        .attr('class', 'bubble')
+        .style('cursor', 'pointer');
+
+      // Add circles with glow effect
+      bubbles.append('circle')
+        .attr('r', d => d.radius)
+        .attr('fill', d => d.color)
+        .attr('fill-opacity', 0.8)
+        .attr('stroke', '#ffffff')
+        .attr('stroke-width', 2)
+        .attr('filter', 'drop-shadow(0 0 6px rgba(59, 130, 246, 0.5))')
+        .on('mouseover', function(event, d) {
+          d3.select(this)
+            .transition()
+            .duration(200)
+            .attr('fill-opacity', 1)
+            .attr('stroke-width', 3)
+            .attr('r', d.radius * 1.2);
+          
+          setSelectedBubble(d);
+        })
+        .on('mouseout', function(event, d) {
+          d3.select(this)
+            .transition()
+            .duration(200)
+            .attr('fill-opacity', 0.8)
+            .attr('stroke-width', 2)
+            .attr('r', d.radius);
+          
+          setSelectedBubble(null);
+        });
+
+      // Add labels for all significant holders (>0.1%)
+      bubbles.filter(d => d.percentage > 0.1)
+        .append('text')
+        .attr('text-anchor', 'middle')
+        .attr('dy', '0.3em')
+        .attr('fill', 'white')
+        .attr('font-size', d => Math.max(10, Math.min(16, d.radius / 2.5)))
+        .attr('font-weight', 'bold')
+        .attr('text-shadow', '1px 1px 2px rgba(0,0,0,0.8)')
+        .text(d => d.percentage >= 0.01 ? `${d.percentage.toFixed(2)}%` : '<0.01%');
+
+      // Add wallet type indicators
+      bubbles.filter(d => d.type !== 'normal')
+        .append('text')
+        .attr('text-anchor', 'middle')
+        .attr('dy', '-0.8em')
+        .attr('fill', 'white')
+        .attr('font-size', '14px')
+        .text(d => d.type === 'team' ? '👥' : '📦');
+
+      // Update positions on simulation tick
+      simulation.on('tick', () => {
+        bubbles.attr('transform', d => `translate(${d.x}, ${d.y})`);
+      });
+
+      // Stop simulation after some time to save resources
+      setTimeout(() => {
+        simulation.stop();
+        console.log('🫧 Simulation stopped');
+      }, 5000);
+
+      // Cleanup
+      return () => {
+        simulation.stop();
+      };
+    }, [holders, teamWallets, bundleWallets, dimensions]);
+
+    return (
+      <div ref={containerRef} className="relative w-full">
+        <svg ref={svgRef} className="w-full" style={{ height: dimensions.height }}></svg>
+        
+        {/* Enhanced Tooltip */}
+        {selectedBubble && (
+          <div className="absolute top-4 right-4 bg-black/90 backdrop-blur-sm border border-white/30 rounded-lg p-4 text-white max-w-xs shadow-xl">
+            <h4 className="font-semibold mb-2 text-lg">
+              {selectedBubble.type === 'team' ? '👥 Team Wallet' : 
+               selectedBubble.type === 'bundle' ? '📦 Bundle Wallet' : 
+               '👤 Regular Holder'}
+            </h4>
+            <div className="space-y-1 text-sm">
+              <p className="text-gray-300">
+                <span className="font-medium">Address:</span> {selectedBubble.address.slice(0, 8)}...{selectedBubble.address.slice(-6)}
+              </p>
+              <p className="text-green-400">
+                <span className="font-medium">Holdings:</span> {selectedBubble.percentage.toFixed(4)}%
+              </p>
+              <p className="text-blue-400">
+                <span className="font-medium">Balance:</span> {parseFloat(selectedBubble.balance).toLocaleString()}
+              </p>
+              <p className="text-yellow-400">
+                <span className="font-medium">Risk Level:</span> {selectedBubble.type === 'team' ? 'High' : selectedBubble.type === 'bundle' ? 'Medium' : 'Low'}
+              </p>
+            </div>
+          </div>
+        )}
+        
+        {/* Enhanced Legend */}
+        <div className="absolute bottom-4 left-4 bg-black/90 backdrop-blur-sm border border-white/30 rounded-lg p-4">
+          <h4 className="text-white font-semibold mb-3 text-sm">Wallet Types</h4>
+          <div className="space-y-2 text-xs">
+            <div className="flex items-center">
+              <div className="w-4 h-4 rounded-full bg-red-500 mr-3 border border-white/50"></div>
+              <span className="text-white">👥 Team Wallets</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-4 h-4 rounded-full bg-yellow-500 mr-3 border border-white/50"></div>
+              <span className="text-white">📦 Bundle Wallets</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-4 h-4 rounded-full bg-blue-500 mr-3 border border-white/50"></div>
+              <span className="text-white">👤 Regular Holders</span>
+            </div>
+          </div>
+          <div className="mt-3 pt-2 border-t border-white/20">
+            <p className="text-gray-400 text-xs">💡 Bubble size = holding percentage</p>
+            <p className="text-gray-400 text-xs">🖱️ Hover for details</p>
+          </div>
+        </div>
+        
+        {/* Stats overlay */}
+        <div className="absolute top-4 left-4 bg-black/90 backdrop-blur-sm border border-white/30 rounded-lg p-3">
+          <h4 className="text-white font-semibold mb-2 text-sm">Distribution Stats</h4>
+          <div className="space-y-1 text-xs text-gray-300">
+            <p>Total Holders: <span className="text-white font-medium">{holders?.length || 0}</span></p>
+            <p>Team Wallets: <span className="text-red-400 font-medium">{teamWallets?.length || 0}</span></p>
+            <p>Bundle Wallets: <span className="text-yellow-400 font-medium">{bundleWallets?.length || 0}</span></p>
+            <p>Showing: <span className="text-blue-400 font-medium">Top 30</span></p>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // Simplify the walletDisplayData useMemo - remove complex conditional logic
@@ -133,6 +392,14 @@ const TeamBundleWalletScanner = () => {
     };
     initProvider();
   }, [chain]);
+
+  // Get wallet address from localStorage on mount
+  useEffect(() => {
+    const savedAddress = localStorage.getItem('walletAddress');
+    if (savedAddress) {
+      setWalletAddress(savedAddress);
+    }
+  }, []);
 
   // Load watchlist from localStorage
   useEffect(() => {
@@ -1211,6 +1478,8 @@ const TeamBundleWalletScanner = () => {
     return `${explorers[chain] || explorers.ethereum}${address}`;
   };
 
+
+
   useEffect(() => {
     return () => {
       if (watchIntervalRef.current) {
@@ -1220,66 +1489,63 @@ const TeamBundleWalletScanner = () => {
   }, []);
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* Full Page Wallet Background */}
-      <div className="fixed inset-0 z-0">
-        <img 
-          src="/wallet.jpg" 
-          alt="Wallet Background" 
-          className="w-full h-full object-cover opacity-30"
-        />
-        <div className="absolute inset-0 bg-black/20"></div>
-      </div>
-      
-      {/* Content Container */}
+    <div className="min-h-screen relative">
       <div className="relative z-10 p-6">
-        <div className="bg-transparent backdrop-blur-sm rounded-lg p-6 mb-6 border border-white/10">
-          <ToastContainer position="top-right" theme="dark" />
+        <ToastContainer 
+          position="top-right" 
+          theme="dark" 
+          autoClose={3000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+        />
+        
+        {/* Input Section */}
+        <div className="bg-black/20 backdrop-blur-md rounded-lg p-6 border border-white/10 mb-6">
+          <h2 className="text-2xl font-bold text-white mb-4">Team & Bundle Wallet Scanner</h2>
+          <p className="text-gray-300 mb-6">Analyze token contracts for team wallets and bundle transactions</p>
           
-          <div className="flex items-center mb-4">
-            <div className="w-3 h-3 bg-blue-500 rounded-full mr-3"></div>
-            <h2 className="text-xl font-semibold text-white drop-shadow-lg">Team & Bundle Wallet Scanner</h2>
-          </div>
-          
-          {/* Input Section */}
-          <div className="mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-2 text-white drop-shadow">Token Address</label>
-                <input
-                  type="text"
-                  value={tokenAddress}
-                  onChange={(e) => setTokenAddress(e.target.value)}
-                  placeholder="0x..."
-                  className="w-full px-3 py-2 bg-black/30 backdrop-blur-sm text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 border border-white/20"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2 text-white drop-shadow">Chain</label>
-                <select
-                  value={chain}
-                  onChange={(e) => setChain(e.target.value)}
-                  className="w-full px-3 py-2 bg-black/30 backdrop-blur-sm text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 border border-white/20"
-                >
-                  <option value="ethereum">Ethereum</option>
-                  <option value="bsc">BSC</option>
-                  <option value="polygon">Polygon</option>
-                  <option value="arbitrum">Arbitrum</option>
-                  <option value="avalanche">Avalanche</option>
-                  <option value="fantom">Fantom</option>
-                </select>
-              </div>
-              <div className="flex items-end">
-                <button
-                  onClick={startWatching}
-                  disabled={loading}
-                  className="w-full px-4 py-2 bg-blue-600/80 hover:bg-blue-700/80 disabled:bg-gray-600/50 rounded-md font-medium text-white backdrop-blur-sm border border-blue-500/30"
-                >
-                  {loading ? 'Analyzing...' : 'Start Analysis'}
-                </button>
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2 text-white drop-shadow">Token Address</label>
+              <input
+                type="text"
+                value={tokenAddress}
+                onChange={(e) => setTokenAddress(e.target.value)}
+                placeholder="0x..."
+                className="w-full px-3 py-2 bg-black/30 backdrop-blur-sm text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 border border-white/20"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2 text-white drop-shadow">Chain</label>
+              <select
+                value={chain}
+                onChange={(e) => setChain(e.target.value)}
+                className="w-full px-3 py-2 bg-black/30 backdrop-blur-sm text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 border border-white/20"
+              >
+                <option value="ethereum">Ethereum</option>
+                <option value="bsc">BSC</option>
+                <option value="polygon">Polygon</option>
+                <option value="arbitrum">Arbitrum</option>
+                <option value="avalanche">Avalanche</option>
+                <option value="fantom">Fantom</option>
+              </select>
+            </div>
+            <div className="flex items-end">
+              <button
+                onClick={startWatching}
+                disabled={loading}
+                className="w-full px-4 py-2 bg-blue-600/80 hover:bg-blue-700/80 disabled:bg-gray-600/50 rounded-md font-medium text-white backdrop-blur-sm border border-blue-500/30"
+              >
+                {loading ? 'Analyzing...' : 'Start Analysis'}
+              </button>
             </div>
           </div>
+        </div>
 
           {/* Tabs */}
           <div className="mb-6">
@@ -1302,9 +1568,9 @@ const TeamBundleWalletScanner = () => {
             </div>
           </div>
 
-        {/* Content */}
-        {activeTab === 'analysis' && (
-        <div className="grid grid-cols-1 gap-6">
+          {/* Content */}
+          {activeTab === 'analysis' && (
+            <div className="grid grid-cols-1 gap-6">
           
           {/* Mandatory Real-time Price Chart - Shows for every analyzed token */}
           {walletDisplayData.tokenData && (
@@ -1420,6 +1686,37 @@ const TeamBundleWalletScanner = () => {
             </div>
           )}
           
+          {/* Wallet Distribution Bubble Map */}
+          {walletDisplayData.tokenData && walletDisplayData.topHolders && walletDisplayData.topHolders.length > 0 && (
+            <div className="bg-black/20 backdrop-blur-md rounded-lg p-4 border border-white/10">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-white drop-shadow-lg flex items-center">
+                  🫧 Wallet Holdings Bubble Map
+                  <span className="ml-2 text-sm text-gray-400">
+                    ({walletDisplayData.topHolders.length} holders visualized)
+                  </span>
+                </h3>
+                
+                <div className="text-sm text-gray-400">
+                  Interactive • Hover for details
+                </div>
+              </div>
+              
+              <div className="w-full min-h-[450px]">
+                <BubbleMap 
+                  holders={walletDisplayData.topHolders}
+                  teamWallets={walletDisplayData.teamWallets}
+                  bundleWallets={walletDisplayData.bundleWallets}
+                  tokenData={walletDisplayData.tokenData}
+                />
+              </div>
+              
+              <div className="mt-4 pt-4 border-t border-white/10 text-sm text-gray-400">
+                <p>💡 <strong>How to read:</strong> Larger bubbles = higher token holdings. Red = team wallets, Yellow = bundle wallets, Blue = regular holders.</p>
+              </div>
+            </div>
+          )}
+
           {/* Enhanced Token Information */}
           {walletDisplayData.tokenData && (
             <div className="bg-black/20 backdrop-blur-md rounded-lg p-4 border border-white/10">
@@ -1913,9 +2210,9 @@ const TeamBundleWalletScanner = () => {
             </div>
           )}
         </div>
-      )}
+          )}
 
-      {activeTab === 'alerts' && (
+          {activeTab === 'alerts' && (
         <div className="bg-black/20 backdrop-blur-md rounded-lg p-4 border border-white/10">
           <h3 className="text-lg font-semibold mb-4 text-white drop-shadow-lg">Live Alerts</h3>
           {alerts.length === 0 ? (
@@ -1938,9 +2235,9 @@ const TeamBundleWalletScanner = () => {
             </div>
           )}
         </div>
-      )}
+          )}
 
-      {activeTab === 'watchlist' && (
+          {activeTab === 'watchlist' && (
         <div className="bg-black/20 backdrop-blur-md rounded-lg p-4 border border-white/10">
           <h3 className="text-lg font-semibold mb-4 text-white drop-shadow-lg">Watchlist</h3>
           {watchlist.length === 0 ? (
@@ -1963,9 +2260,8 @@ const TeamBundleWalletScanner = () => {
               ))}
             </div>
           )}
-        </div>
-      )}
-        </div>
+          </div>
+          )}
       </div>
     </div>
   );

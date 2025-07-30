@@ -1,44 +1,51 @@
-import React, { useState } from 'react';
-import { Web3Provider } from './context/Web3Context';
-import Header from './components/Header';
-import Dashboard from './components/Dashboard';
-import TeamBundleWalletScanner from './components/TeamBundleWalletScanner';
-import PhishingScanner from './components/PhishingScanner';
-import ThreeBackground from './components/ThreeBackground';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
+import Login from './components/Login';
+import MainApp from './components/MainApp';
+import ProtectedRoute from './components/ProtectedRoute';
+import 'react-toastify/dist/ReactToastify.css';
+import './index.css';
 
 function App() {
-  const [activeSection, setActiveSection] = useState('dashboard');
-
-  const renderActiveSection = () => {
-    switch (activeSection) {
-      case 'dashboard':
-        return <Dashboard setActiveSection={setActiveSection} />;
-      case 'team-scanner':
-        return <TeamBundleWalletScanner />;
-      case 'team-bundle-scanner':
-        return <TeamBundleWalletScanner />;
-      case 'phishing-scanner':
-        return <PhishingScanner />;
-      default:
-        return <Dashboard setActiveSection={setActiveSection} />;
-    }
-  };
-
   return (
-    <Web3Provider>
-      <div className="min-h-screen bg-black relative overflow-hidden">
-        {/* 3D Background Animation */}
-        <ThreeBackground />
+    <Router>
+      <div className="App">
+        <Routes>
+          {/* Redirect root to login */}
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          
+          {/* Login page */}
+          <Route path="/login" element={<Login />} />
+          
+          {/* Protected dashboard route - now shows MainApp with Dashboard */}
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute>
+                <MainApp />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Catch all route - redirect to login */}
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
         
-        {/* Content */}
-        <div className="relative z-30">
-          <Header activeSection={activeSection} setActiveSection={setActiveSection} />
-          <main className="w-full">
-            {renderActiveSection()}
-          </main>
-        </div>
+        <ToastContainer 
+          position="top-right" 
+          theme="dark" 
+          autoClose={3000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+        />
       </div>
-    </Web3Provider>
+    </Router>
   );
 }
 
