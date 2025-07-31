@@ -187,7 +187,7 @@ const Login = () => {
 
         {/* Footer */}
         <div className="text-center mt-8 text-gray-500 text-sm">
-          <p>© 2024 Aion Dapp. All rights reserved.</p>
+          <p>© 2025 Aion Dapp. All rights reserved.</p>
         </div>
       </div>
     </div>
